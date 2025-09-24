@@ -3314,3 +3314,13 @@ pub unsafe fn va_arg<T: VaArgSafe>(ap: &mut VaListImpl<'_>) -> T;
 #[rustc_intrinsic]
 #[rustc_nounwind]
 pub unsafe fn va_end(ap: &mut VaListImpl<'_>);
+
+/// Returns `true` if the target feature named by `feature` is enabled for the enclosing function.
+///
+/// `feature` must be **const**.
+///
+/// The feature may be enabled globally (e.g. `-Ctarget_feature`) or by `#[target_feature]`.
+#[rustc_intrinsic]
+#[rustc_intrinsic_const_stable_indirect]
+#[rustc_nounwind]
+pub const fn target_feature_enabled(feature: &'static str) -> bool;

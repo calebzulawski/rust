@@ -194,6 +194,7 @@ fn intrinsic_operation_unsafety(tcx: TyCtxt<'_>, intrinsic_id: LocalDefId) -> hi
         | sym::sqrtf64
         | sym::sqrtf128
         | sym::sub_with_overflow
+        | sym::target_feature_enabled
         | sym::three_way_compare
         | sym::truncf16
         | sym::truncf32
@@ -293,6 +294,7 @@ pub(crate) fn check_intrinsic_type(
             (1, 1, vec![Ty::new_imm_ptr(tcx, param(0))], tcx.types.unit)
         }
         sym::needs_drop => (1, 0, vec![], tcx.types.bool),
+        sym::target_feature_enabled => (0, 0, vec![Ty::new_static_str(tcx)], tcx.types.bool),
 
         sym::type_name => (1, 0, vec![], Ty::new_static_str(tcx)),
         sym::type_id => {

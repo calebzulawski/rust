@@ -77,6 +77,7 @@ use crate::traits::solve::{
     self, CanonicalInput, ExternalConstraints, ExternalConstraintsData, PredefinedOpaques,
     PredefinedOpaquesData, QueryResult, inspect,
 };
+use crate::ty::instance::InstanceKind;
 use crate::ty::predicate::ExistentialPredicateStableCmpExt as _;
 use crate::ty::{
     self, AdtDef, AdtDefData, AdtKind, Binder, Clause, Clauses, Const, GenericArg, GenericArgs,
@@ -1687,6 +1688,41 @@ impl<'tcx> TyCtxt<'tcx> {
                 def_kind
             )
         }
+    }
+
+    /// Returns true if the target feature is enabled for an instance. This includes
+    /// global features (e.g. -Ctarget-feature) as well as from #[target_feature].
+    pub fn target_feature_enabled_for_instance(
+        self,
+        instance: InstanceKind<'tcx>,
+        feature: Symbol,
+    ) -> bool {
+        let enabled = self.sess.unstable_target_features.contains(&feature)
+            || self.sess.target_features.contains(&feature);
+
+        let def_id = instance.def_id();
+        let def_kind = self.def_kind(def_id);
+
+        let owned_attrs: Option<Cow<'tcx, CodegenFnAttrs>> =
+            def_kind.has_codegen_attrs().then(|| self.codegen_instance_attrs(instance));
+
+        let mut inherited_attrs: Option<&'tcx CodegenFnAttrs> = None;
+        if owned_attrs.is_none() {
+            let mut current = def_id;
+            while let Some(parent) = self.opt_parent(current) {
+                let parent_kind = self.def_kind(parent);
+                if parent_kind.has_codegen_attrs() {
+                    inherited_attrs = Some(self.codegen_fn_attrs(parent));
+                    break;
+                }
+                current = parent;
+            }
+        }
+
+        let attrs: &CodegenFnAttrs =
+            owned_attrs.as_deref().or(inherited_attrs).unwrap_or(CodegenFnAttrs::EMPTY);
+
+        enabled || attrs.target_features.iter().any(|f| f.name == feature)
     }
 
     pub fn alloc_steal_thir(self, thir: Thir<'tcx>) -> &'tcx Steal<Thir<'tcx>> {

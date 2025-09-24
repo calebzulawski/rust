@@ -139,6 +139,18 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
                 let val = self.const_val_to_op(val, tcx.types.bool, Some(dest.layout))?;
                 self.copy_op(&val, dest)?;
             }
+            sym::target_feature_enabled => {
+                let mut feature_place = self.deref_pointer(&args[0])?;
+                while feature_place.layout.ty.is_ref() {
+                    feature_place = self.deref_pointer(&feature_place)?;
+                }
+                let feature = self.read_str(&feature_place)?;
+                let feature_symbol = Symbol::intern(feature);
+                let caller_instance = self.frame().instance.def;
+                let enabled =
+                    tcx.target_feature_enabled_for_instance(caller_instance, feature_symbol);
+                self.write_scalar(Scalar::from_bool(enabled), dest)?;
+            }
             sym::type_id => {
                 let tp_ty = instance.args.type_at(0);
                 ensure_monomorphic_enough(tcx, tp_ty)?;

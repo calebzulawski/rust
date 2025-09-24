@@ -3,7 +3,7 @@
 use rustc_middle::mir::*;
 use rustc_middle::ty::{self, TyCtxt};
 use rustc_middle::{bug, span_bug};
-use rustc_span::sym;
+use rustc_span::{Symbol, sym};
 
 use crate::take_array;
 
@@ -163,6 +163,70 @@ impl<'tcx> crate::MirPass<'tcx> for LowerIntrinsics {
                             StatementKind::Assign(Box::new((
                                 *destination,
                                 Rvalue::NullaryOp(null_op, tp_ty),
+                            ))),
+                        ));
+                        terminator.kind = TerminatorKind::Goto { target };
+                    }
+                    sym::target_feature_enabled => {
+                        let target = target.unwrap();
+                        let Ok([feature]) = take_array(args) else {
+                            bug!("Wrong arguments for target_feature_enabled intrinsic");
+                        };
+                        let Operand::Constant(const_op) = &feature.node else {
+                            span_bug!(
+                                terminator.source_info.span,
+                                "non-constant argument to target_feature_enabled",
+                            );
+                        };
+
+                        // Evaluate the feature name as a const
+                        let typing_env =
+                            ty::TypingEnv::non_body_analysis(tcx, body.source.def_id());
+                        let const_val = tcx
+                            .try_normalize_erasing_regions(typing_env, const_op.const_)
+                            .unwrap_or(const_op.const_)
+                            .eval(tcx, typing_env, terminator.source_info.span)
+                            .unwrap_or_else(|_| {
+                                span_bug!(
+                                    terminator.source_info.span,
+                                    "failed to evaluate target_feature_enabled argument",
+                                )
+                            });
+
+                        // Decode the feature name and check if it's enabled
+                        let bytes = const_val
+                            .try_get_slice_bytes_for_diagnostics(tcx)
+                            .unwrap_or_else(|| {
+                                span_bug!(
+                                    terminator.source_info.span,
+                                    "target_feature_enabled argument is not a string slice",
+                                )
+                            });
+                        let feature_str = str::from_utf8(bytes).unwrap_or_else(|_| {
+                            span_bug!(
+                                terminator.source_info.span,
+                                "target_feature_enabled argument is not valid UTF-8",
+                            )
+                        });
+                        let feature_symbol = Symbol::intern(feature_str);
+                        let enabled = tcx.target_feature_enabled_for_instance(
+                            body.source.instance,
+                            feature_symbol,
+                        );
+
+                        // Return if the feature is enabled as a const bool
+                        let enabled_const =
+                            Const::Val(ConstValue::from_bool(enabled), tcx.types.bool);
+
+                        block.statements.push(Statement::new(
+                            terminator.source_info,
+                            StatementKind::Assign(Box::new((
+                                *destination,
+                                Rvalue::Use(Operand::Constant(Box::new(ConstOperand {
+                                    span: terminator.source_info.span,
+                                    user_ty: None,
+                                    const_: enabled_const,
+                                }))),
                             ))),
                         ));
                         terminator.kind = TerminatorKind::Goto { target };

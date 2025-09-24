@@ -2171,6 +2171,7 @@ symbols! {
         target_family,
         target_feature,
         target_feature_11,
+        target_feature_enabled,
         target_feature_inline_always,
         target_has_atomic,
         target_has_atomic_equal_alignment,
