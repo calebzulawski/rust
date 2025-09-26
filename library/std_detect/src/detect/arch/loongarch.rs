@@ -23,6 +23,13 @@ features! {
     /// * `"lvz"`
     /// * `"ual"`
     #[stable(feature = "stdarch_loongarch_feature", since = "1.89.0")]
+    @MACRO_NAME_TARGET_FEATURE_ENABLED: is_loongarch_feature_enabled;
+    @MACRO_TARGET_FEATURE_ENABLED_ATTRS:
+    /// This macro tests, at compile time, whether a `loongarch` feature is enabled on loongarch platforms.
+    ///
+    /// This macro expands to a boolean constant that reflects the target features of the enclosing
+    /// function, considering both global features and those added by `#[target_feature]`. If this
+    /// macro is used outside of a function, it only considers the global features.
     @FEATURE: #[unstable(feature = "stdarch_loongarch_feature_detection", issue = "117425")] _32s: "32s";
     /// 32S
     @FEATURE: #[stable(feature = "stdarch_loongarch_feature", since = "1.89.0")] f: "f";

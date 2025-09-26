@@ -119,6 +119,13 @@ features! {
     ///
     /// [docs]: https://software.intel.com/sites/landingpage/IntrinsicsGuide
     #[stable(feature = "simd_x86", since = "1.27.0")]
+    @MACRO_NAME_TARGET_FEATURE_ENABLED: is_x86_feature_enabled;
+    @MACRO_TARGET_FEATURE_ENABLED_ATTRS:
+    /// This macro tests, at compile time, whether an `x86`/`x86_64` feature is enabled on x86 platforms.
+    ///
+    /// This macro expands to a boolean constant that reflects the target features of the enclosing
+    /// function, considering both global features and those added by `#[target_feature]`. If this
+    /// macro is used outside of a function, it only considers the global features.
     @BIND_FEATURE_NAME: "abm"; "lzcnt"; // abm is a synonym for lzcnt
     @BIND_FEATURE_NAME: "avx512gfni"; "gfni"; #[deprecated(since = "1.67.0", note = "the `avx512gfni` feature has been renamed to `gfni`")];
     @BIND_FEATURE_NAME: "avx512vaes"; "vaes"; #[deprecated(since = "1.67.0", note = "the `avx512vaes` feature has been renamed to `vaes`")];

@@ -35,6 +35,8 @@ macro_rules! features {
       @CFG: $cfg:meta;
       @MACRO_NAME: $macro_name:ident;
       @MACRO_ATTRS: $(#[$macro_attrs:meta])*
+      @MACRO_NAME_TARGET_FEATURE_ENABLED: $macro_name_enabled:ident;
+      @MACRO_TARGET_FEATURE_ENABLED_ATTRS: $(#[$macro_enabled_attrs:meta])*
       $(@BIND_FEATURE_NAME: $bind_feature:tt; $feature_impl:tt; $(#[$deprecate_attr:meta];)?)*
       $(@NO_RUNTIME_DETECTION: $nort_feature:tt; )*
       $(@FEATURE: #[$stability_attr:meta] $feature:ident: $feature_lit:tt;
@@ -120,6 +122,81 @@ macro_rules! features {
             )*
             ($t:tt,) => {
                     $crate::$macro_name!($t);
+            };
+            ($t:tt) => {
+                compile_error!(
+                    concat!(
+                        concat!("unknown ", stringify!($target)),
+                        concat!(" target feature: ", $t)
+                    )
+                )
+            };
+        }
+
+        #[macro_export]
+        $(#[$macro_enabled_attrs])*
+        #[allow_internal_unstable(core_intrinsics)]
+        #[cfg($cfg)]
+        #[doc(cfg($cfg))]
+        #[unstable(feature = "target_feature_enabled", issue = "none")]
+        macro_rules! $macro_name_enabled {
+            $(
+                ($feature_lit) => {
+                    core::intrinsics::target_feature_enabled($feature_lit)
+                };
+            )*
+            $(
+                ($nort_feature) => {
+                    core::intrinsics::target_feature_enabled($nort_feature)
+                };
+            )*
+            ($t:tt,) => {
+                $crate::$macro_name_enabled!($t);
+            };
+            ($t:tt) => {
+                compile_error!(
+                    concat!(
+                        concat!("unknown ", stringify!($target)),
+                        concat!(" target feature: ", $t)
+                    )
+                )
+            };
+        }
+
+        $(#[$macro_enabled_attrs])*
+        #[macro_export]
+        #[cfg(not($cfg))]
+        #[doc(cfg($cfg))]
+        #[unstable(feature = "target_feature_enabled", issue = "none")]
+        macro_rules! $macro_name_enabled {
+            $(
+                ($feature_lit) => {
+                    compile_error!(
+                        concat!(
+                            r#"This macro cannot be used on the current target.
+                            You can prevent it from being used in other architectures by
+                            guarding it behind a cfg("#,
+                            stringify!($cfg),
+                            ")."
+                        )
+                    )
+                };
+            )*
+            $(
+                ($nort_feature) => {
+                    compile_error!(
+                        concat!(
+                            r#"This macro cannot be used on the current target.
+                            You can prevent it from being used in other architectures by
+                            guarding it behind a cfg("#,
+                            stringify!($cfg),
+                            ")."
+                        )
+                    )
+                };
+            )*
+            ($t:tt,) => {
+                    $crate::$macro_name_enabled!($t);
             };
             ($t:tt) => {
                 compile_error!(

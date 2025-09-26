@@ -90,6 +90,13 @@ features! {
     ///
     /// [docs]: https://developer.arm.com/documentation/ddi0487/latest
     #[stable(feature = "simd_aarch64", since = "1.60.0")]
+    @MACRO_NAME_TARGET_FEATURE_ENABLED: is_aarch64_feature_enabled;
+    @MACRO_TARGET_FEATURE_ENABLED_ATTRS:
+    /// This macro tests, at compile time, whether an `aarch64` feature is enabled on aarch64 platforms.
+    ///
+    /// This macro expands to a boolean constant that reflects the target features of the enclosing
+    /// function, considering both global features and those added by `#[target_feature]`. If this
+    /// macro is used outside of a function, it only considers the global features.
     @BIND_FEATURE_NAME: "asimd"; "neon";
     @NO_RUNTIME_DETECTION: "ras";
     @NO_RUNTIME_DETECTION: "v8.1a";

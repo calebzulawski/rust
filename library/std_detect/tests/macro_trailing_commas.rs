@@ -16,6 +16,23 @@
     ),
     feature(stdarch_internal)
 )]
+#![cfg_attr(
+    any(
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_arch = "arm64ec",
+        target_arch = "x86",
+        target_arch = "x86_64",
+        target_arch = "powerpc",
+        target_arch = "powerpc64",
+        target_arch = "s390x",
+        target_arch = "riscv32",
+        target_arch = "riscv64",
+        target_arch = "loongarch32",
+        target_arch = "loongarch64"
+    ),
+    feature(target_feature_enabled)
+)]
 #![cfg_attr(target_arch = "arm", feature(stdarch_arm_feature_detection))]
 #![cfg_attr(
     any(target_arch = "aarch64", target_arch = "arm64ec"),
@@ -57,6 +74,8 @@ extern crate std_detect;
 fn arm() {
     let _ = is_arm_feature_detected!("neon");
     let _ = is_arm_feature_detected!("neon",);
+    let _ = is_arm_feature_enabled!("neon");
+    let _ = is_arm_feature_enabled!("neon",);
 }
 
 #[test]
@@ -64,6 +83,8 @@ fn arm() {
 fn aarch64() {
     let _ = is_aarch64_feature_detected!("fp");
     let _ = is_aarch64_feature_detected!("fp",);
+    let _ = is_aarch64_feature_enabled!("fp");
+    let _ = is_aarch64_feature_enabled!("fp",);
 }
 
 #[test]
@@ -73,6 +94,8 @@ fn loongarch() {
     let _ = is_loongarch_feature_detected!("32s",);
     let _ = is_loongarch_feature_detected!("lsx");
     let _ = is_loongarch_feature_detected!("lsx",);
+    let _ = is_loongarch_feature_enabled!("32s");
+    let _ = is_loongarch_feature_enabled!("32s",);
 }
 
 #[test]
@@ -80,6 +103,8 @@ fn loongarch() {
 fn powerpc() {
     let _ = is_powerpc_feature_detected!("altivec");
     let _ = is_powerpc_feature_detected!("altivec",);
+    let _ = is_powerpc_feature_enabled!("altivec");
+    let _ = is_powerpc_feature_enabled!("altivec",);
 }
 
 #[test]
@@ -87,6 +112,8 @@ fn powerpc() {
 fn powerpc64() {
     let _ = is_powerpc64_feature_detected!("altivec");
     let _ = is_powerpc64_feature_detected!("altivec",);
+    let _ = is_powerpc64_feature_enabled!("altivec");
+    let _ = is_powerpc64_feature_enabled!("altivec",);
 }
 
 #[test]
@@ -94,6 +121,8 @@ fn powerpc64() {
 fn riscv() {
     let _ = is_riscv_feature_detected!("zk");
     let _ = is_riscv_feature_detected!("zk",);
+    let _ = is_riscv_feature_enabled!("zk");
+    let _ = is_riscv_feature_enabled!("zk",);
 }
 
 #[test]
@@ -101,6 +130,8 @@ fn riscv() {
 fn s390x() {
     let _ = is_s390x_feature_detected!("vector");
     let _ = is_s390x_feature_detected!("vector",);
+    let _ = is_s390x_feature_enabled!("vector");
+    let _ = is_s390x_feature_enabled!("vector",);
 }
 
 #[test]
@@ -108,4 +139,6 @@ fn s390x() {
 fn x86() {
     let _ = is_x86_feature_detected!("sse");
     let _ = is_x86_feature_detected!("sse",);
+    let _ = is_x86_feature_enabled!("sse");
+    let _ = is_x86_feature_enabled!("sse",);
 }

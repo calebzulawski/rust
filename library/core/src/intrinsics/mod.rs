@@ -3321,6 +3321,7 @@ pub unsafe fn va_end(ap: &mut VaListImpl<'_>);
 ///
 /// The feature may be enabled globally (e.g. `-Ctarget_feature`) or by `#[target_feature]`.
 #[rustc_intrinsic]
-#[rustc_intrinsic_const_stable_indirect]
 #[rustc_nounwind]
+#[stable(feature = "target_feature_enabled", since = "CURRENT_RUSTC_VERSION")]
+#[rustc_const_stable(feature = "target_feature_enabled", since = "CURRENT_RUSTC_VERSION")]
 pub const fn target_feature_enabled(feature: &'static str) -> bool;

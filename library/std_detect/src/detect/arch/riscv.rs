@@ -175,6 +175,13 @@ features! {
     /// * `"unaligned-vector-mem"`
     ///   * Runtime detection requires Linux kernel version 6.13 or later.
     #[stable(feature = "riscv_ratified", since = "1.78.0")]
+    @MACRO_NAME_TARGET_FEATURE_ENABLED: is_riscv_feature_enabled;
+    @MACRO_TARGET_FEATURE_ENABLED_ATTRS:
+    /// This macro tests, at compile time, whether a `riscv` feature is enabled on RISC-V platforms.
+    ///
+    /// This macro expands to a boolean constant that reflects the target features of the enclosing
+    /// function, considering both global features and those added by `#[target_feature]`. If this
+    /// macro is used outside of a function, it only considers the global features.
 
     @FEATURE: #[unstable(feature = "stdarch_riscv_feature_detection", issue = "111192")] rv32i: "rv32i";
     without cfg check: true;

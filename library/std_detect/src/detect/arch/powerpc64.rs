@@ -7,6 +7,13 @@ features! {
     @MACRO_ATTRS:
     /// Checks if `powerpc` feature is enabled.
     #[unstable(feature = "stdarch_powerpc_feature_detection", issue = "111191")]
+    @MACRO_NAME_TARGET_FEATURE_ENABLED: is_powerpc64_feature_enabled;
+    @MACRO_TARGET_FEATURE_ENABLED_ATTRS:
+    /// This macro tests, at compile time, whether a `powerpc64` feature is enabled on powerpc64 platforms.
+    ///
+    /// This macro expands to a boolean constant that reflects the target features of the enclosing
+    /// function, considering both global features and those added by `#[target_feature]`. If this
+    /// macro is used outside of a function, it only considers the global features.
     @FEATURE: #[unstable(feature = "stdarch_powerpc_feature_detection", issue = "111191")] altivec: "altivec";
     /// Altivec
     @FEATURE: #[unstable(feature = "stdarch_powerpc_feature_detection", issue = "111191")] vsx: "vsx";

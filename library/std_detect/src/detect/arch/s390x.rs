@@ -7,6 +7,13 @@ features! {
     @MACRO_ATTRS:
     /// Checks if `s390x` feature is enabled.
     #[unstable(feature = "stdarch_s390x_feature_detection", issue = "135413")]
+    @MACRO_NAME_TARGET_FEATURE_ENABLED: is_s390x_feature_enabled;
+    @MACRO_TARGET_FEATURE_ENABLED_ATTRS:
+    /// This macro tests, at compile time, whether an `s390x` feature is enabled on s390x platforms.
+    ///
+    /// This macro expands to a boolean constant that reflects the target features of the enclosing
+    /// function, considering both global features and those added by `#[target_feature]`. If this
+    /// macro is used outside of a function, it only considers the global features.
     @FEATURE: #[unstable(feature = "stdarch_s390x_feature_detection", issue = "135413")] concurrent_functions: "concurrent-functions";
     /// s390x concurrent-functions facility
     #[unstable(feature = "stdarch_s390x_feature_detection", issue = "135413")]
