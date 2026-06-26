@@ -9,6 +9,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/Magic.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/AutoUpgrade.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -38,6 +39,7 @@
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm/Target/TargetMachine.h"
 #include <iostream>
 
 // Some of the functions below rely on LLVM modules that may not always be
@@ -67,6 +69,9 @@
 using namespace llvm;
 using namespace llvm::sys;
 using namespace llvm::object;
+
+typedef struct LLVMOpaqueTargetMachine *LLVMTargetMachineRef;
+DEFINE_STDCXX_CONVERSION_FUNCTIONS(TargetMachine, LLVMTargetMachineRef)
 
 // This opcode is an LLVM detail that could hypothetically change (?), so
 // verify that the hard-coded value in `dwarf_const.rs` still agrees with LLVM.
@@ -1094,6 +1099,35 @@ extern "C" void LLVMRustRemoveFnAttribute(LLVMValueRef Fn, const char *Name,
   if (auto *F = dyn_cast<Function>(unwrap<Value>(Fn))) {
     F->removeFnAttr(StringRef(Name, NameLen));
   }
+}
+
+extern "C" bool LLVMRustGetFnAttributeValue(LLVMValueRef F, const char *Name,
+                                             size_t NameLen,
+                                             RustStringRef Out) {
+  if (auto *Fn = dyn_cast<Function>(unwrap<Value>(F))) {
+    auto Attr = Fn->getFnAttribute(StringRef(Name, NameLen));
+    if (Attr.isValid()) {
+      auto OS = RawRustStringOstream(Out);
+      OS << Attr.getValueAsString();
+      return true;
+    }
+  }
+  return false;
+}
+
+extern "C" bool LLVMRustFunctionHasTargetFeature(LLVMTargetMachineRef TMRef,
+                                                  LLVMValueRef F,
+                                                  const char *Feature,
+                                                  size_t FeatureLen) {
+  if (auto *Fn = dyn_cast<Function>(unwrap<Value>(F))) {
+    TargetMachine *TM = unwrap(TMRef);
+    if (const TargetSubtargetInfo *Subtarget = TM->getSubtargetImpl(*Fn)) {
+      SmallString<64> EnabledFeature("+");
+      EnabledFeature += StringRef(Feature, FeatureLen);
+      return Subtarget->checkFeatures(EnabledFeature);
+    }
+  }
+  return false;
 }
 
 extern "C" void LLVMRustGlobalAddMetadata(LLVMValueRef Global, unsigned Kind,

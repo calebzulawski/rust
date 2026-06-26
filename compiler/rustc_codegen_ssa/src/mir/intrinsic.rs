@@ -1,9 +1,11 @@
 use rustc_abi::{Align, FieldIdx, WrappingRange};
-use rustc_middle::mir::SourceInfo;
+use rustc_hir::def_id::LOCAL_CRATE;
+use rustc_middle::mir::{self, SourceInfo};
+use rustc_middle::ty::layout::HasTyCtxt;
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_middle::{bug, span_bug};
 use rustc_session::config::OptLevel;
-use rustc_span::{ErrorGuaranteed, sym};
+use rustc_span::{ErrorGuaranteed, Symbol, sym};
 use rustc_target::spec::Arch;
 
 use super::operand::{OperandRef, OperandValue};
@@ -59,6 +61,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         bx: &mut Bx,
         instance: ty::Instance<'tcx>,
         args: &[OperandRef<'tcx, Bx::Value>],
+        mir_args: &[mir::Operand<'tcx>],
         result_layout: ty::layout::TyAndLayout<'tcx>,
         result_place: Option<PlaceValue<Bx::Value>>,
         source_info: SourceInfo,
@@ -589,10 +592,116 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 OperandValue::ZeroSized
             }
 
+            sym::target_feature_available_at_call_site => {
+                // This intrinsic either returns a bool reflecting feature presence, or a marker. A later
+                // LLVM pass will replace the marker with the feature presence.
+                // * If the feature is already known to be present, we can immediately return true.
+                // * If we can detect the feature later in the LLVM pass, return the marker.
+                // * If the feature isn't present and we can't detect it later, return false.
+
+                let [feature_arg] = mir_args else {
+                    span_bug!(span, "wrong number of MIR arguments for {name}");
+                };
+                let feature_arg = if let Some(constant) = feature_arg.constant() {
+                    Some(constant)
+                } else {
+                    // This intrinsic is intended to be called with a string literal.
+                    // In MIR, that commonly appears as:
+                    //
+                    // let f = "feature"
+                    // target_feature_available_at_call_site(f)
+                    match feature_arg {
+                        mir::Operand::Copy(place) | mir::Operand::Move(place) => {
+                            place.as_local().and_then(|local| {
+                                self.mir
+                                    .basic_blocks
+                                    .iter()
+                                    .flat_map(|block| block.statements.iter())
+                                    .try_fold(None, |assigned, statement| {
+                                        let (target, rvalue) = statement.kind.as_assign()?;
+                                        if target.as_local() != Some(local) {
+                                            return Some(assigned);
+                                        }
+                                        match rvalue {
+                                            mir::Rvalue::Use(
+                                                mir::Operand::Constant(constant),
+                                                _,
+                                            ) if assigned.is_none() => Some(Some(&**constant)),
+                                            _ => None,
+                                        }
+                                    })
+                                    .flatten()
+                            })
+                        }
+                        mir::Operand::Constant(_) | mir::Operand::RuntimeChecks(_) => None,
+                    }
+                };
+                let Some(feature_arg) = feature_arg else {
+                    bx.tcx().dcx().span_err(
+                        span,
+                        "`target_feature_available_at_call_site` requires a string literal argument",
+                    );
+                    return IntrinsicResult::Operand(OperandValue::Immediate(bx.const_bool(false)));
+                };
+
+                // This isn't a diagnostic, but it's similar usage as we aren't using it within the
+                // interpreter.
+                let feature_bytes = self
+                    .eval_mir_constant(feature_arg)
+                    .try_get_slice_bytes_for_diagnostics(self.cx.tcx());
+                let Some(feature_bytes) = feature_bytes else {
+                    bx.tcx().dcx().span_err(
+                        span,
+                        "`target_feature_available_at_call_site` requires a string literal argument",
+                    );
+                    return IntrinsicResult::Operand(OperandValue::Immediate(bx.const_bool(false)));
+                };
+                let Ok(feature_name) = std::str::from_utf8(feature_bytes) else {
+                    bx.tcx().dcx().span_err(
+                        span,
+                        "`target_feature_available_at_call_site` requires a UTF-8 string argument",
+                    );
+                    return IntrinsicResult::Operand(OperandValue::Immediate(bx.const_bool(false)));
+                };
+
+                // Ensure it's a valid Rust feature
+                let rust_target_features = bx.tcx().rust_target_features(LOCAL_CRATE);
+                let Some(&stability) = rust_target_features.get(feature_name) else {
+                    bx.tcx()
+                        .dcx()
+                        .span_err(span, format!("unknown target feature `{feature_name}`"));
+                    return IntrinsicResult::Operand(OperandValue::Immediate(bx.const_bool(false)));
+                };
+                if let Err(reason) = stability.toggle_allowed() {
+                    bx.tcx().dcx().span_err(
+                        span,
+                        format!("cannot use target feature `{feature_name}`: {reason}"),
+                    );
+                    return IntrinsicResult::Operand(OperandValue::Immediate(bx.const_bool(false)));
+                }
+
+                // If the function has the feature, we can emit true now. Otherwise emit the marker.
+                let current_fn_features =
+                    crate::target_features::asm_target_features(bx.tcx(), self.instance.def_id());
+                if current_fn_features.contains(&Symbol::intern(feature_name)) {
+                    OperandValue::Immediate(bx.const_bool(true))
+                } else {
+                    OperandValue::Immediate(
+                        bx.codegen_target_feature_available_at_call_site(feature_name),
+                    )
+                }
+            }
+
             _ => {
                 // Need to use backend-specific things in the implementation.
-                let result =
-                    bx.codegen_intrinsic_call(instance, args, result_layout, result_place, span);
+                let result = bx.codegen_intrinsic_call(
+                    instance,
+                    args,
+                    mir_args,
+                    result_layout,
+                    result_place,
+                    span,
+                );
                 if let IntrinsicResult::Operand(op) = result {
                     op
                 } else {
